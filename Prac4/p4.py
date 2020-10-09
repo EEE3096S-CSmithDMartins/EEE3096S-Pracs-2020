@@ -64,10 +64,19 @@ def display_scores(count, raw_data):
 # Setup Pins
 def setup():
     # Setup board mode
-    # Setup regular GPIO
+    GPIO.setmode(GPIO.BOARD)
+
+    #region Setup regular GPIO
+    # setting up the LEDs as output
+    GPIO.setup(LED_value, GPIO.OUT) 
+    # setting up pins btn_increase and btn_submit as inputs with a pull-up resistor
+    GPIO.setup((btn_increase, btn_submit), GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    #endregion 
+
     # Setup PWM channels
     # Setup debouncing and callbacks
-    pass
+    GPIO.add_event_detect(btn_increase, GPIO.RISING, lambda _: print("You pressed the increase button"), bouncetime=200)
+    GPIO.add_event_detect(btn_submit, GPIO.RISING, callback=lambda _: print("You pressed the submit button"), bouncetime=200)
 
 
 # Load high scores
@@ -147,7 +156,7 @@ if __name__ == "__main__":
         welcome()
         while True:
             menu()
-            pass
+
     except Exception as e:
         print(e)
     finally:
