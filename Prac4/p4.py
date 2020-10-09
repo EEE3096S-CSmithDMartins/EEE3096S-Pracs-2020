@@ -3,6 +3,7 @@ import RPi.GPIO as GPIO
 import random
 import ES2EEPROMUtils
 import os
+# from time import time  # importing time for the long press of the submit button
 
 # some global variables that need to change as we run the program
 end_of_game = None  # set if the user wins or ends the game
@@ -75,8 +76,8 @@ def setup():
 
     # Setup PWM channels
     # Setup debouncing and callbacks
-    GPIO.add_event_detect(btn_increase, GPIO.RISING, lambda _: print("You pressed the increase button"), bouncetime=200)
-    GPIO.add_event_detect(btn_submit, GPIO.RISING, callback=lambda _: print("You pressed the submit button"), bouncetime=200)
+    GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=200)
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=200)
 
 
 # Load high scores
@@ -108,15 +109,28 @@ def generate_number():
 
 # Increase button pressed
 def btn_increase_pressed(channel):
+    print("You pressed the increase button")
     # Increase the value shown on the LEDs
     # You can choose to have a global variable store the user's current guess, 
     # or just pull the value off the LEDs when a user makes a guess
-    pass
 
 
 # Guess button
 def btn_guess_pressed(channel):
     # If they've pressed and held the button, clear up the GPIO and take them back to the menu screen
+    # the player does not necessarily have to release the button for it to be considered a long press. long press = press for 3s (3000ms)
+    
+    # when the button is pressed, start a wait for up to 3000 ms for it to not be pressed
+    pin = GPIO.wait_for_edge(channel, GPIO.RISING, timeout=3000)
+    if pin is None:
+        print("You long pressed the button on pin", channel)
+    else:
+        print("You pressed the submit button")
+    # start_time = time()
+    # while True:
+    #     if time() - start_time > 3:
+    #         print("You have long-pressed the button on channel", channel)
+    
     # Compare the actual value with the user value displayed on the LEDs
     # Change the PWM LED
     # if it's close enough, adjust the buzzer
@@ -127,7 +141,6 @@ def btn_guess_pressed(channel):
     # - add the new score
     # - sort the scores
     # - Store the scores back to the EEPROM, being sure to update the score count
-    pass
 
 
 # LED Brightness
