@@ -3,7 +3,6 @@ import RPi.GPIO as GPIO
 import random
 import ES2EEPROMUtils
 import os
-# from time import time  # importing time for the long press of the submit button
 
 # some global variables that need to change as we run the program
 end_of_game = None  # set if the user wins or ends the game
@@ -118,19 +117,20 @@ def btn_increase_pressed(channel):
 # Guess button
 def btn_guess_pressed(channel):
     # If they've pressed and held the button, clear up the GPIO and take them back to the menu screen
-    # the player does not necessarily have to release the button for it to be considered a long press. long press = press for 3s (3000ms)
-    
-    # when the button is pressed, start a wait for up to 3000 ms for it to not be pressed
-    pin = GPIO.wait_for_edge(channel, GPIO.RISING, timeout=3000)
-    if pin is None:
+    # The player does not necessarily have to release the button for it to be considered a long press. long press = press for time >= 2s (2000ms)
+    GPIO.remove_event_detect(btn_submit)  # removing other events to avoid conficts
+
+    # when the button is pressed, wait for up to 2000 ms for it to not be pressed
+    pin = GPIO.wait_for_edge(channel, GPIO.RISING, timeout=2000)
+    if pin is None:  # if the button was not released within the 2s, that is a long press. The player can press it for longer, with no effect
         print("You long pressed the button on pin", channel)
-    else:
+    else:  # if the button is released withing the 2s, then its just a normal click
         print("You pressed the submit button")
-    # start_time = time()
-    # while True:
-    #     if time() - start_time > 3:
-    #         print("You have long-pressed the button on channel", channel)
-    
+
+    GPIO.remove_event_detect(btn_submit)  # removing the wait_for_edge event to avoid confilct
+    # adding the old event
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=200)
+ 
     # Compare the actual value with the user value displayed on the LEDs
     # Change the PWM LED
     # if it's close enough, adjust the buzzer
