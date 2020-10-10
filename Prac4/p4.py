@@ -3,17 +3,22 @@ import RPi.GPIO as GPIO
 import random
 import ES2EEPROMUtils
 import os
+import time
 
 # some global variables that need to change as we run the program
 end_of_game = None  # set if the user wins or ends the game
+pwm_LED = None  # this will represent the accuracy LED
+buzzer = None  # this will represent the buzzer component
+current_guess = 0  # the current user guess
 
 # DEFINE THE PINS USED HERE
-LED_value = [11, 13, 15]
+LED_value = [31, 13, 15]  # [11, 13, 15]  changing because of broken pin. DON'T FORGET TO REVERT THIS WHEN SUBMITTING
 LED_accuracy = 32
 btn_submit = 16
 btn_increase = 18
-buzzer = None
+buzzer_pin = 33
 eeprom = ES2EEPROMUtils.ES2EEPROM()
+
 
 
 # Print the game banner
@@ -45,6 +50,7 @@ def menu():
         print("Use the buttons on the Pi to make and submit your guess!")
         print("Press and hold the guess button to cancel your game")
         value = generate_number()
+        current_guess = 0  # the default guess is 0, for every round
         while not end_of_game:
             pass
     elif option == "Q":
@@ -63,20 +69,35 @@ def display_scores(count, raw_data):
 
 # Setup Pins
 def setup():
+    # using the global variables declared earlier
+    global pwm_LED
+    global buzzer
+
     # Setup board mode
     GPIO.setmode(GPIO.BOARD)
 
     #region Setup regular GPIO
     # setting up the LEDs as output
-    GPIO.setup(LED_value, GPIO.OUT) 
+    GPIO.setup(LED_value, GPIO.OUT)
+
     # setting up pins btn_increase and btn_submit as inputs with a pull-up resistor
     GPIO.setup((btn_increase, btn_submit), GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    #endregion 
+  
 
     # Setup PWM channels
+    GPIO.setup(LED_accuracy, GPIO.OUT)
+    GPIO.setup(buzzer_pin, GPIO.OUT)
+    #endregion
+  
     # Setup debouncing and callbacks
     GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=200)
     GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=200)
+
+    pwm_LED = GPIO.PWM(LED_accuracy, 50)
+    pwm_LED.start(50)
+
+    buzzer = GPIO.PWM(buzzer_pin, 100)
+    buzzer.start(50)
 
 
 # Load high scores
@@ -108,10 +129,16 @@ def generate_number():
 
 # Increase button pressed
 def btn_increase_pressed(channel):
+    global current_guess
+
     print("You pressed the increase button")
+
     # Increase the value shown on the LEDs
-    # You can choose to have a global variable store the user's current guess, 
-    # or just pull the value off the LEDs when a user makes a guess
+    current_guess += 1  
+    if current_guess > 7:
+        current_guess = 0  # the guess cannot be higher than 7
+    display_on_leds(current_guess)
+
 
 
 # Guess button
@@ -149,6 +176,7 @@ def accuracy_leds():
     # - The % brightness should be directly proportional to the % "closeness"
     # - For example if the answer is 6 and a user guesses 4, the brightness should be at 4/6*100 = 66%
     # - If they guessed 7, the brightness would be at ((8-7)/(8-6)*100 = 50%
+
     pass
 
 # Sound Buzzer
@@ -160,6 +188,28 @@ def trigger_buzzer():
     # If the user is off by an absolute value of 2, the buzzer should sound twice every second
     # If the user is off by an absolute value of 1, the buzzer should sound 4 times a second
     pass
+
+
+# A function to display an integer on 3 LEDs
+def display_on_leds(integer):
+    # converting the integer to binary '0bXYZ'
+    binary = list(bin(integer))[2:]  # this will be the array ['X', 'Y', 'Z']
+    
+    # is will be a problem if the number is less than 4, as they will have less than 3 digits, so that must be fixed
+    # region Prepending 0's if necessary
+    binary_width = len(binary)
+    number_of_leds = len(LED_value)
+    if binary_width < number_of_leds:
+        for i in range(number_of_leds - binary_width):
+            binary.insert(0, 0)  # insert a 0 in the begining of he array
+    #endregion
+
+    # converting the array of characters into an array of integers (0 or 1)
+    binary = [int(char) for char in binary]  # this will turn binary into [X, Y, Z] instead of ['X', 'Y', 'Z']
+    # print(binary)
+
+    # writing the binary number to the LEDs
+    GPIO.output(LED_value, binary)  
 
 
 if __name__ == "__main__":
