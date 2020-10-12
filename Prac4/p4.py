@@ -9,7 +9,7 @@ import time
 end_of_game = None  # set if the user wins or ends the game
 pwm_LED = None  # this will represent the accuracy LED
 buzzer = None  # this will represent the buzzer component
-current_guess = 0  # the current user guess
+current_guess = 10  # the current user guess
 
 # DEFINE THE PINS USED HERE
 LED_value = [31, 13, 15]  # [11, 13, 15]  changing because of broken pin. DON'T FORGET TO REVERT THIS WHEN SUBMITTING
@@ -64,6 +64,8 @@ def display_scores(count, raw_data):
     # print the scores to the screen in the expected format
     print("There are {} scores. Here are the top 3!".format(count))
     # print out the scores in the required format
+    for x in range(3):
+    	print(x+1, "-", raw_data[x][0],"took", raw_data[x][1], "guesses")
     pass
 
 
@@ -98,27 +100,51 @@ def setup():
 
     buzzer = GPIO.PWM(buzzer_pin, 100)
     buzzer.start(50)
-
+ 
 
 # Load high scores
 def fetch_scores():
     # get however many scores there are
-    score_count = None
+    read_block = eeprom.read_block
+    score_count = read_block(0, 1)
     # Get the scores
-    
     # convert the codes back to ascii
-    
     # return back the results
+    temp_scores = {}
+    for x in range(1, score_count[0] + 1):
+    	score = read_block(x, 4)
+    	name = chr(score[0]) + chr(score[1]) + chr(score[2])
+    	score_val = score[3]
+    	temp_scores[name] = score_val
+    #sorted using python function.
+    scores = sorted(temp_scores.items(), key=lambda x: x[1], reverse=True)
     return score_count, scores
 
-
 # Save high scores
+#data is an array holding user input and guess number
 def save_scores():
+    #get use guess
+    guess = current_guess
+    #get use data
+    name = input("Enter your name: ")
+    data = []
+    for i in name[0:3:1]:
+    	data.append(i)
+
+    read_block = eeprom.read_block
+    write_block = eeprom.write_block
+    #update total amount of scores
+    score_count = read_block(0, 1)
+    write_block(0, [score_count[0]+1])
     # fetch scores
     # include new score
+    # write new score
+    new_score_data = []
+    for letter in data:
+    	new_score_data.append(ord(letter))
+    new_score_data.append(guess)
+    write_block(score_count[0]+1, new_score_data)
     # sort
-    # update total amount of scores
-    # write new scores
     pass
 
 
