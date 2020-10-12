@@ -9,7 +9,7 @@ import time
 end_of_game = None  # set if the user wins or ends the game
 pwm_LED = None  # this will represent the accuracy LED
 buzzer = None  # this will represent the buzzer component
-current_guess = 10  # the current user guess
+current_guess = 0  # the current user guess
 
 # DEFINE THE PINS USED HERE
 LED_value = [31, 13, 15]  # [11, 13, 15]  changing because of broken pin. DON'T FORGET TO REVERT THIS WHEN SUBMITTING
