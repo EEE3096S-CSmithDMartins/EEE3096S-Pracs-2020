@@ -68,6 +68,10 @@ def display_scores(count, raw_data):
     # print the scores to the screen in the expected format
     print("There are {} scores. Here are the top 3!".format(count))
     # print out the scores in the required format
+    # print the top 3 scores
+    for x in range(3):
+    	#print the position number
+    	print(x+1, "-", raw_data[x][0],"took", raw_data[x][1], "guesses")
     pass
 
 
@@ -101,27 +105,60 @@ def setup():
 
     buzzer = GPIO.PWM(buzzer_pin, 1)
     buzzer.start(50)
-
+ 
 
 # Load high scores
 def fetch_scores():
+    clear = eeprom.populate_mock_scores
+    clear()
     # get however many scores there are
-    score_count = None
+    read_block = eeprom.read_block
+    score_count = read_block(0, 1)
     # Get the scores
-    
     # convert the codes back to ascii
-    
     # return back the results
+    scores = []
+    for x in range(1, score_count[0] + 1):
+    	data = []
+    	score = read_block(x, 4)
+    	name = chr(score[0]) + chr(score[1]) + chr(score[2])
+    	score_val = score[3]
+    	data.append(name)
+    	data.append(score_val)
+    	scores.append(data)
     return score_count, scores
-
 
 # Save high scores
 def save_scores():
+    #get use guess
+    guess = current_guess
+    #get use name
+    name = input("Enter your name: ")
+    data = []
+    for i in name[0:3:1]:
+    	data.append(i)
+    read_block = eeprom.read_block
+    write_block = eeprom.write_block
+    #update total amount of scores
+    score_count = read_block(0, 1)
     # fetch scores
+    scores = []
+    for x in range(1, score_count[0] + 1):
+    	score = read_block(x, 4)
+    	scores.append(score)
     # include new score
-    # sort
-    # update total amount of scores
-    # write new scores
+    new_score_data = []
+    for letter in data:
+    	new_score_data.append(ord(letter))
+    new_score_data.append(guess)
+    scores.append(new_score_data)
+
+    #sort scores
+    final_scores = sorted(scores, key=lambda x:x[3])
+    for i in range(1, score_count[0] + 1):
+    	c = 0
+    	write_block(i, final_scores[i-1])
+    write_block(0, [score_count[0] + 1])
     pass
 
 
