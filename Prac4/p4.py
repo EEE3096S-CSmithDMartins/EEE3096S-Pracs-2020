@@ -3,10 +3,12 @@ import RPi.GPIO as GPIO
 import random
 import ES2EEPROMUtils
 import os
-import time
+import time  # CHECK IF THIS IS NEEDED BEFORE SUBMITTING
 
 # some global variables that need to change as we run the program
 end_of_game = None  # set if the user wins or ends the game
+game_has_started = False  # this is for the buttons to be irresponsive until the user starts the game
+game_won = False  # this will be set to true when the game is won
 pwm_LED = None  # this will represent the accuracy LED
 buzzer = None  # this will represent the buzzer component
 current_guess = 0  # the current user guess
@@ -37,7 +39,7 @@ def welcome():
 
 # Print the game menu
 def menu():
-    global end_of_game
+    global end_of_game, game_has_started
     global value  # to hold the correct answer
     option = input("Select an option:   H - View High Scores     P - Play Game       Q - Quit\n")
     option = option.upper()
@@ -51,12 +53,23 @@ def menu():
         print("Starting a new round!")
         print("Use the buttons on the Pi to make and submit your guess!")
         print("Press and hold the guess button to cancel your game")
+        # when a new game starts, the game has started, so it is not the end of the game
+        game_has_started = True
+        end_of_game = False
+        game_won = False
+
         value = generate_number()
         print(value)
         current_guess = 0  # the default guess is 0, for every round
         while not end_of_game:
             pass
-        print("You won")
+        # if game_won:
+        #     print("You won")  # only printed when the user wins
+        
+        # getting ready to start a new game
+        game_has_started = False
+        end_of_game = False
+        
     elif option == "Q":
         print("Come back soon!")
         exit()
@@ -89,23 +102,26 @@ def setup():
 
     # setting up pins btn_increase and btn_submit as inputs with a pull-up resistor
     GPIO.setup((btn_increase, btn_submit), GPIO.IN, pull_up_down=GPIO.PUD_UP)
-  
-    # Setup PWM channels
+    #endregion
+
+    #region Setup PWM channels
     GPIO.setup(LED_accuracy, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(buzzer_pin, GPIO.OUT, initial=GPIO.LOW)
+
+    # setting the frequencies
+    pwm_LED = GPIO.PWM(LED_accuracy, 60)
+    buzzer = GPIO.PWM(buzzer_pin, 1)
+
+    # starting them with a duty cycle of 0, so that they're off
+    pwm_LED.start(0)
+    buzzer.start(0)
+
     #endregion
   
     # Setup debouncing and callbacks
-    GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=200)
-    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=200)
+    GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=300)
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=50)
 
-
-    pwm_LED = GPIO.PWM(LED_accuracy, 60)
-    pwm_LED.start(50)
-
-    buzzer = GPIO.PWM(buzzer_pin, 1)
-    buzzer.start(50)
- 
 
 # Load high scores
 def fetch_scores():
@@ -170,6 +186,10 @@ def generate_number():
 def btn_increase_pressed(channel):
     global current_guess
 
+    # exit the function if it is the end of the game or the game has not started yet
+    if not game_has_started or end_of_game:
+        return
+
     print("You pressed the increase button")
 
     # Increase the value shown on the LEDs
@@ -181,65 +201,77 @@ def btn_increase_pressed(channel):
 
 # Guess button (submit button)
 def btn_guess_pressed(channel):
-    global end_of_game
+    global end_of_game, game_won
+    print("You pressed something: ", end='')
+    # exit the function if it is the end of the game or the game has not started yet
+    if not game_has_started or end_of_game:
+        return
+    
+    # otherwise, just carry out normally
+    
     # If they've pressed and held the button, clear up the GPIO and take them back to the menu screen
     # The player does not necessarily have to release the button for it to be considered a long press. long press = press for time >= 2s (2000ms)
     GPIO.remove_event_detect(btn_submit)  # removing other events to avoid conficts
     press_type = ""
-    # when the button is pressed, wait for up to 2000 ms for it to not be pressed
+    # when the button is pressed, wait for up to 2000 ms for it to be released (RISING edge)
     pin = GPIO.wait_for_edge(channel, GPIO.RISING, timeout=2000)
     if pin is None:  # if the button was not released within the 2s, that is a long press. The player can press it for longer, with no effect
         press_type = "long"
-        print("You long pressed the button on pin", channel)
+        print("You long pressed the button on pin")
     else:  # if the button is released withing the 2s, then its just a normal click
         press_type = "click"
         print("You pressed the submit button")
 
     GPIO.remove_event_detect(btn_submit)  # removing the wait_for_edge event to avoid confilct
     # adding the old event
-    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=200)
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=50)
 
-    if press_type == "click":
-        # Compare the actual value with the user value displayed on the LEDs
-        led_duty_cycle = accuracy_leds(current_guess, value)
-        if led_duty_cycle == 100:
-            end_of_game = True
-        # Change the PWM LED
-        pwm_LED.ChangeDutyCycle(led_duty_cycle)
-
-        # if it's close enough, adjust the buzzer
-        trigger_buzzer()
-
-    elif press_type == "long":
+    if press_type == "long":
         end_of_game = True
     
- 
-
+    elif press_type == "click":
+        # Compare the actual value with the user value displayed on the LEDs
+        if current_guess == value:
+            end_of_game = True
+            game_won = True
+        else:
+            # Change the PWM LED
+            accuracy_leds()
+            # if it's close enough, adjust the buzzer
+            trigger_buzzer()
 
     # if it's an exact guess:
-    # - Disable LEDs and Buzzer
-    # - tell the user and prompt them for a name
-    # - fetch all the scores
-    # - add the new score
-    # - sort the scores
-    # - Store the scores back to the EEPROM, being sure to update the score count
+    if end_of_game: 
+        # - Disable LEDs and Buzzer
+        pwm_LED.stop()
+        GPIO.output(LED_value, 0)
+        buzzer.stop()
 
+        if game_won: 
+            print("You won")
+            # - tell the user and prompt them for a name
+            # - fetch all the scores
+            # - add the new score
+            # - sort the scores
+            # - Store the scores back to the EEPROM, being sure to update the score count
+            save_scores()
 
 # LED Brightness
-def accuracy_leds(guess, answer):
+def accuracy_leds():
     # Set the brightness of the LED based on how close the guess is to the answer
     # - The % brightness should be directly proportional to the % "closeness"
     # - For example if the answer is 6 and a user guesses 4, the brightness should be at 4/6*100 = 66%
     # - If they guessed 7, the brightness would be at ((8-7)/(8-6)*100 = 50%
-    duty_cycle = (8-guess)/(8-answer)*100 if guess > answer else guess/answer*100
-    return duty_cycle
+    duty_cycle = (8-current_guess)/(8-value)*100 if current_guess > value else current_guess/value*100
+    pwm_LED.ChangeDutyCycle(duty_cycle)
+
 
 # Sound Buzzer
 def trigger_buzzer():
-    global current_guess, value, buzzer
     # The buzzer operates differently from the LED
     # While we want the brightness of the LED to change(duty cycle), we want the frequency of the buzzer to change
     # The buzzer duty cycle should be left at 50%
+    buzzer.start(50)
     # If the user is off by an absolute value of 3, the buzzer should sound once every second
     error = abs(current_guess - value)
     if error == 3:
@@ -250,7 +282,9 @@ def trigger_buzzer():
     # If the user is off by an absolute value of 1, the buzzer should sound 4 times a second
     elif error == 1:
         buzzer.ChangeFrequency(4)
-
+    # if the user is off by more than 3, the buzzer will be off
+    else:
+        buzzer.stop()
 
 
 # A function to display an integer on 3 LEDs
