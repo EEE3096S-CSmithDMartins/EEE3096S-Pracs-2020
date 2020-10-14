@@ -116,7 +116,7 @@ def setup():
     GPIO.setup(buzzer_pin, GPIO.OUT, initial=GPIO.LOW)
 
     # setting the frequencies
-    pwm_LED = GPIO.PWM(LED_accuracy, 60)
+    pwm_LED = GPIO.PWM(LED_accuracy, 50)
     buzzer = GPIO.PWM(buzzer_pin, 1)
 
     # starting them with a duty cycle of 0, so that they're off
@@ -127,7 +127,7 @@ def setup():
   
     # Setup debouncing and callbacks
     GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=300)
-    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=50)
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=100)
 
 
 # Load high scores
@@ -221,7 +221,7 @@ def btn_guess_pressed(channel):
     GPIO.remove_event_detect(btn_submit)  # removing other events to avoid conficts
     press_type = ""
     # when the button is pressed, wait for up to 2000 ms for it to be released (RISING edge)
-    pin = GPIO.wait_for_edge(channel, GPIO.RISING, timeout=2000)
+    pin = GPIO.wait_for_edge(btn_submit, GPIO.RISING, timeout=2000)
     if pin is None:  # if the button was not released within the 2s, that is a long press. The player can press it for longer, with no effect
         press_type = "long"
     else:  # if the button is released withing the 2s, then its just a normal click
@@ -229,7 +229,7 @@ def btn_guess_pressed(channel):
 
     GPIO.remove_event_detect(btn_submit)  # removing the wait_for_edge event to avoid confilct
     # adding the old event
-    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=50)
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=100)
 
     if press_type == "long":
         print("You long pressed the button on pin")
