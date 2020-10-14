@@ -6,12 +6,13 @@ import os
 import time  # CHECK IF THIS IS NEEDED BEFORE SUBMITTING
 
 # some global variables that need to change as we run the program
-end_of_game = None  # set if the user wins or ends the game
+end_of_game = False  # set to True if the user wins or ends the game
 game_has_started = False  # this is for the buttons to be irresponsive until the user starts the game
 game_won = False  # this will be set to true when the game is won
 pwm_LED = None  # this will represent the accuracy LED
 buzzer = None  # this will represent the buzzer component
 current_guess = 0  # the current user guess
+number_of_guesses = 0  # the number of times the user has submitted a guess
 value = 0  # this will hold the correct answer
 
 # DEFINE THE PINS USED HERE
@@ -36,11 +37,29 @@ def welcome():
     print("")
     print("Guess the number and immortalise your name in the High Score Hall of Fame!")
 
+# Start a round
+def start_game():
+    global game_has_started, end_of_game, value, game_won, current_guess, number_of_guesses
+
+    os.system('clear')
+    print("Starting a new round!")
+    print("Use the buttons on the Pi to make and submit your guess!")
+    print("Press and hold the guess button to cancel your game")
+    # when a new game starts, the game has started, so it is not the end of the game
+    game_has_started = True
+    end_of_game = False
+    game_won = False
+
+    value = generate_number()
+    print(value)
+    current_guess = 0  # the default guess is 0, for every round
+    number_of_guesses = 0
+
+
 
 # Print the game menu
 def menu():
     global end_of_game, game_has_started
-    global value  # to hold the correct answer
     option = input("Select an option:   H - View High Scores     P - Play Game       Q - Quit\n")
     option = option.upper()
     if option == "H":
@@ -49,23 +68,11 @@ def menu():
         s_count, ss = fetch_scores()
         display_scores(s_count, ss)
     elif option == "P":
-        os.system('clear')
-        print("Starting a new round!")
-        print("Use the buttons on the Pi to make and submit your guess!")
-        print("Press and hold the guess button to cancel your game")
-        # when a new game starts, the game has started, so it is not the end of the game
-        game_has_started = True
-        end_of_game = False
-        game_won = False
+        start_game()
 
-        value = generate_number()
-        print(value)
-        current_guess = 0  # the default guess is 0, for every round
         while not end_of_game:
             pass
-        # if game_won:
-        #     print("You won")  # only printed when the user wins
-        
+
         # getting ready to start a new game
         game_has_started = False
         end_of_game = False
@@ -79,7 +86,7 @@ def menu():
 
 def display_scores(count, raw_data):
     # print the scores to the screen in the expected format
-    print("There are {} scores. Here are the top 3!".format(count))
+    print("There are {} scores. Here are the top 3!".format(count[0]))
     # print out the scores in the required format
     # print the top 3 scores
     for x in range(3):
@@ -125,8 +132,8 @@ def setup():
 
 # Load high scores
 def fetch_scores():
-    clear = eeprom.populate_mock_scores
-    clear()
+    # clear = eeprom.populate_mock_scores
+    # clear()
     # get however many scores there are
     read_block = eeprom.read_block
     score_count = read_block(0, 1)
@@ -147,7 +154,7 @@ def fetch_scores():
 # Save high scores
 def save_scores():
     #get use guess
-    guess = current_guess
+    guess = number_of_guesses
     #get use name
     name = input("Enter your name: ")
     data = []
@@ -201,7 +208,7 @@ def btn_increase_pressed(channel):
 
 # Guess button (submit button)
 def btn_guess_pressed(channel):
-    global end_of_game, game_won
+    global end_of_game, game_won, number_of_guesses
     print("You pressed something: ", end='')
     # exit the function if it is the end of the game or the game has not started yet
     if not game_has_started or end_of_game:
@@ -217,23 +224,24 @@ def btn_guess_pressed(channel):
     pin = GPIO.wait_for_edge(channel, GPIO.RISING, timeout=2000)
     if pin is None:  # if the button was not released within the 2s, that is a long press. The player can press it for longer, with no effect
         press_type = "long"
-        print("You long pressed the button on pin")
     else:  # if the button is released withing the 2s, then its just a normal click
         press_type = "click"
-        print("You pressed the submit button")
 
     GPIO.remove_event_detect(btn_submit)  # removing the wait_for_edge event to avoid confilct
     # adding the old event
     GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=50)
 
     if press_type == "long":
+        print("You long pressed the button on pin")
         end_of_game = True
     
     elif press_type == "click":
+        print("You pressed the submit button")
+        number_of_guesses += 1
         # Compare the actual value with the user value displayed on the LEDs
         if current_guess == value:
-            end_of_game = True
             game_won = True
+            end_of_game = True
         else:
             # Change the PWM LED
             accuracy_leds()
