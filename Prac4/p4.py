@@ -127,7 +127,7 @@ def setup():
   
     # Setup debouncing and callbacks
     GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=300)
-    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=100)
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=300)
 
 
 # Load high scores
@@ -210,6 +210,8 @@ def btn_increase_pressed(channel):
 def btn_guess_pressed(channel):
     global end_of_game, game_won, number_of_guesses
     print("You pressed something: ", end='')
+        
+    
     # exit the function if it is the end of the game or the game has not started yet
     if not game_has_started or end_of_game:
         return
@@ -218,18 +220,26 @@ def btn_guess_pressed(channel):
     
     # If they've pressed and held the button, clear up the GPIO and take them back to the menu screen
     # The player does not necessarily have to release the button for it to be considered a long press. long press = press for time >= 2s (2000ms)
-    GPIO.remove_event_detect(btn_submit)  # removing other events to avoid conficts
     press_type = ""
-    # when the button is pressed, wait for up to 2000 ms for it to be released (RISING edge)
-    pin = GPIO.wait_for_edge(btn_submit, GPIO.RISING, timeout=2000)
-    if pin is None:  # if the button was not released within the 2s, that is a long press. The player can press it for longer, with no effect
-        press_type = "long"
-    else:  # if the button is released withing the 2s, then its just a normal click
+    # if the button is still pressed
+    if GPIO.input(btn_submit) == 0:
+        # start measuring the time
+        start_time = time.time()
+        while True:
+            # if the button has been released at this point, then that's a click
+            if GPIO.input(btn_submit) == 1 and time.time() - start_time < 2:
+                press_type = "click"
+                break
+            # only wait for up to 2s. If the button has not been released by then, that's a long press
+            elif time.time() - start_time >= 2:
+                press_type = "long"
+                break
+        # # if the loop didn't break, this is a normal click, but if it did, it is a long click that timed out
+        # else:
+        #     press_type = "click"
+    # if the button has already been released when this function was called    
+    else:
         press_type = "click"
-
-    GPIO.remove_event_detect(btn_submit)  # removing the wait_for_edge event to avoid confilct
-    # adding the old event
-    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=100)
 
     if press_type == "long":
         print("You long pressed the button on pin")
