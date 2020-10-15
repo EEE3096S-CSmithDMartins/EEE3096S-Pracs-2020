@@ -91,7 +91,7 @@ def display_scores(count, raw_data):
     # print the scores to the screen in the expected format
     print("There are {} scores. Here are the top 3!".format(count))
     # print the top 3 scores
-    for x in range(count):
+    for x in range(3):
     	#print the position number
     	print(x+1, "-", raw_data[x][0],"took", raw_data[x][1], "guesses")
 
@@ -231,12 +231,14 @@ def btn_guess_pressed(channel):
 
     if press_type == "long":
         end_of_game = True
+        # switch LEDs and buzzer off
         switch_all_off()
     
     elif press_type == "click":
         number_of_guesses += 1
         # Compare the actual value with the user value displayed on the LEDs
         if current_guess == value:  # if it's an exact guess
+            # switch LEDs and buzzer off
             switch_all_off()
             print("You won")
             # - Store the scores back to the EEPROM, being sure to update the score count
