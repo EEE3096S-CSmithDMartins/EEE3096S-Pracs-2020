@@ -54,7 +54,14 @@ def start_game():
     number_of_guesses = 0  # the user has not started guessing yet
 
     value = generate_number()
-    
+
+# Switch LEDs and buzzer off
+def switch_all_off():
+    # - Disable LEDs and Buzzer
+    pwm_LED.stop()
+    GPIO.output(LED_value, 0)
+    buzzer.stop()
+
 
 # Print the game menu
 def menu():
@@ -74,7 +81,6 @@ def menu():
 
         # getting ready to start a new game
         game_has_started = False
-        # end_of_game = False
         
     elif option == "Q":
         print("Come back soon!")
@@ -227,13 +233,18 @@ def btn_guess_pressed(channel):
 
     if press_type == "long":
         end_of_game = True
+        switch_all_off()
     
     elif press_type == "click":
         number_of_guesses += 1
         # Compare the actual value with the user value displayed on the LEDs
-        if current_guess == value:
+        if current_guess == value:  # if it's an exact guess
             game_won = True
-            # end_of_game = True
+            switch_all_off()
+            print("You won")
+            # - Store the scores back to the EEPROM, being sure to update the score count
+            save_scores()
+            end_of_game = True
         else:
             # Change the PWM LED
             accuracy_leds()
@@ -241,28 +252,9 @@ def btn_guess_pressed(channel):
             trigger_buzzer()
 
 
-    # if it's an exact guess:
-    if game_won:
-        print("You won")
-        # - tell the user and prompt them for a name
-        # - fetch all the scores
-        # - add the new score
-        # - sort the scores
-        # - Store the scores back to the EEPROM, being sure to update the score count
-        save_scores()
-        end_of_game = True
-
-    if end_of_game: 
-        # - Disable LEDs and Buzzer
-        pwm_LED.stop()
-        GPIO.output(LED_value, 0)
-        buzzer.stop()
-
-        
-
 # LED Brightness
 def accuracy_leds():
-    pwm_LED.start(0)
+    pwm_LED.start(0)  # start the pwm, if it was off
     # Set the brightness of the LED based on how close the guess is to the answer
     # - The % brightness should be directly proportional to the % "closeness"
     # - For example if the answer is 6 and a user guesses 4, the brightness should be at 4/6*100 = 66%
