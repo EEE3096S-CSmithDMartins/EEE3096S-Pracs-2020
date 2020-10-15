@@ -8,7 +8,6 @@ import time
 # some global variables that need to change as we run the program
 end_of_game = False  # set to True if the user wins or ends the game
 game_has_started = False  # this is for the buttons to be irresponsive until the user starts the game
-game_won = False  # this will be set to true when the game is won
 pwm_LED = None  # this will represent the accuracy LED
 buzzer = None  # this will represent the buzzer component
 current_guess = 0  # the current user guess
@@ -40,7 +39,7 @@ def welcome():
 # Start a round
 def start_game():
     # global variables that will be modified in this function
-    global game_has_started, end_of_game, value, game_won, current_guess, number_of_guesses
+    global game_has_started, end_of_game, value, current_guess, number_of_guesses
 
     os.system('clear')
     print("Starting a new round!")
@@ -49,7 +48,6 @@ def start_game():
     # when a new game starts, the game has started, so it is not the end of the game
     game_has_started = True
     end_of_game = False
-    game_won = False
     current_guess = 0  # the default guess is 0, for every round
     number_of_guesses = 0  # the user has not started guessing yet
 
@@ -203,7 +201,7 @@ def btn_increase_pressed(channel):
 
 # Guess button (submit button)
 def btn_guess_pressed(channel):
-    global end_of_game, game_won, number_of_guesses        
+    global end_of_game, number_of_guesses 
     
     # exit the function if it is the end of the game or if the game has not started yet
     if not game_has_started or end_of_game:
@@ -239,7 +237,6 @@ def btn_guess_pressed(channel):
         number_of_guesses += 1
         # Compare the actual value with the user value displayed on the LEDs
         if current_guess == value:  # if it's an exact guess
-            game_won = True
             switch_all_off()
             print("You won")
             # - Store the scores back to the EEPROM, being sure to update the score count
