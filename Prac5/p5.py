@@ -17,5 +17,14 @@ mcp = MCP.MCP3008(spi, cs)
 # create an analog input channel on pin 1 
 chan = AnalogIn(mcp, MCP.P1)
 
+# parameters of the temperature sensor (from datasheet)
+Tc = 10e-3 # temperature coefficient, in V/ºC
+V0 = 500e-3 # output voltage at 0 ºC, in V
+
+Vout = chan.voltage
+T_ambient = (Vout - V0)/Tc
+
 print('Raw ADC Value: ', chan.value)
 print('ADC Voltage: ' + str(chan.voltage) + 'V')
+print('Temperature:', T_ambient, 'ºC')
+
