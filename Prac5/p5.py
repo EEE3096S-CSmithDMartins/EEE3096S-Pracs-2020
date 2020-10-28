@@ -24,7 +24,11 @@ V0 = 500e-3 # output voltage at 0 ºC, in V
 Vout = chan.voltage
 T_ambient = (Vout - V0)/Tc
 
-print('Raw ADC Value: ', chan.value)
-print('ADC Voltage: ' + str(chan.voltage) + 'V')
-print('Temperature:', T_ambient, 'ºC')
+value = chan.value
+print('Raw ADC Value: ', value)
+print('ADC Voltage: ' + str(Vout) + 'V')
 
+
+# print("Runtime", "Temp Reading", "Temp", sep='\t\t')
+print("Runtime\t\tTemp Reading\tTemp")
+print("{:7s}\t\t{:<12d}\t{:.3f}  C".format('100s', value, T_ambient))
