@@ -89,10 +89,16 @@ def print_values():
 
 
 if __name__ == "__main__":
-	setup()
+	try:
+		setup()
 
-	print("Runtime\t\tTemp Reading\tTemp")
-	print_values()
+		print("Runtime\t\tTemp Reading\tTemp")
+		print_values()
 
-	while True:
-		pass
+		while True:
+			pass
+	
+	except Exception as e:
+		print(e)
+	finally:
+		GPIO.cleanup()
