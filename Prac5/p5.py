@@ -6,7 +6,8 @@ import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
 import RPi.GPIO as GPIO
 
-time_interval = 1.0
+time_interval = 5
+thread = None
 
 def setup():
 	# the following variables must be global
@@ -31,21 +32,32 @@ def setup():
 	GPIO.setup(button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 	# adding a callback for when the button is clicked
-	GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=lambda _: print("clicked"), bouncetime=300)
+	GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=toggle_rate, bouncetime=300)
 
 
 
-def toggle_rate():
-	global time_interval
+def toggle_rate(_):
+	"""
+		This function toggles the sampling time
+	"""
+	global time_interval, thread
+
+	# stopping the thread
+	thread.cancel()
 
 	if time_interval == 10:
 		time_interval = 5
 
-	elif time_interval = 5:
+	elif time_interval == 5:
 		time_interval = 1
 		
-	elif time_interval = 1:
+	elif time_interval == 1:
 		time_interval = 10
+	
+	thread = threading.Timer(time_interval, print_values)
+
+	# starting the thread with a new time
+	thread.start()
 
 
 # parameters of the temperature sensor (from datasheet)
@@ -53,6 +65,9 @@ Tc = 10e-3 # temperature coefficient, in V/ºC
 V0 = 500e-3 # output voltage at 0 ºC, in V
 
 def print_values():
+	# using thread as a global variable
+	global thread
+
 	thread = threading.Timer(time_interval, print_values)
 	thread.daemon = True
 	thread.start()
@@ -62,6 +77,7 @@ def print_values():
 
 	value = chan.value
 	print("{:7s}\t\t{:<12d}\t{:.3f}  C".format('100s', value, T_ambient))
+
 
 if __name__ == "__main__":
 	setup()
