@@ -4,10 +4,19 @@ import digitalio
 import board
 import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
+import datetime
 import RPi.GPIO as GPIO
 
 time_interval = 5
 thread = None
+
+# parameters of the temperature sensor (from datasheet)
+Tc = 10e-3 # temperature coefficient, in V/ºC
+V0 = 500e-3 # output voltage at 0 ºC, in V
+
+# to calculate runtime
+start = datetime.datetime.now()
+
 
 def setup():
 	# the following variables must be global
@@ -60,10 +69,6 @@ def toggle_rate(_):
 	thread.start()
 
 
-# parameters of the temperature sensor (from datasheet)
-Tc = 10e-3 # temperature coefficient, in V/ºC
-V0 = 500e-3 # output voltage at 0 ºC, in V
-
 def print_values():
 	# using thread as a global variable
 	global thread
@@ -76,7 +81,11 @@ def print_values():
 	T_ambient = (Vout - V0)/Tc
 
 	value = chan.value
-	print("{:7s}\t\t{:<12d}\t{:.3f}  C".format('100s', value, T_ambient))
+	
+	end = datetime.datetime.now()
+	runtime_s = (end - start).seconds
+	runtime = str(runtime_s) + "s"
+	print("{:7s}\t\t{:<12d}\t{:.3f}  C".format(runtime, value, T_ambient))
 
 
 if __name__ == "__main__":
