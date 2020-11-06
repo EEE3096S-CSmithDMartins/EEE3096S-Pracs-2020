@@ -13,13 +13,14 @@ import time
 
 
 buzzer_pin = 13  # the buzzer pin in BCM mode
-start_stop_pin = 0  # the pin to start/stop printing to the console
 
 buzzer = None  # this will represent the buzzer component
 
 eeprom = ES2EEPROMUtils.ES2EEPROM()
 time_interval = 5
 thread = None
+
+program_is_running = True  # this variable will be toggled when the start-stop button is pressed
 
 # parameters of the temperature sensor (from datasheet)
 Tc = 10e-3 # temperature coefficient, in V/℃
@@ -46,10 +47,13 @@ def setup():
 
 
     # the toggle rate button pin (in BCM mode)
-    rate_pin = 23
+    rate_pin = 23  # this is pin 16 in BOARD MODE
 
-    # setting GPIO 23 (BCM) as an input
-    GPIO.setup(rate_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    # the pin to start/stop printing to the console
+    start_stop_pin = 24  # this is pin 18 in BOARD MODE 
+
+    # setting GPIO 23 (BCM) and GPIO 24 (BCM) as an input
+    GPIO.setup((rate_pin, start_stop_pin), GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
     #region Setup buzzer
     GPIO.setup(buzzer_pin, GPIO.OUT, initial=GPIO.LOW)
@@ -60,6 +64,7 @@ def setup():
 
     # adding a callback for when the button is clicked
     GPIO.add_event_detect(rate_pin, GPIO.FALLING, callback=toggle_rate, bouncetime=300)
+    GPIO.add_event_detect(start_stop_pin, GPIO.FALLING, callback=start_stop, bouncetime=300)
 
 
 def toggle_rate(_):
@@ -86,36 +91,49 @@ def toggle_rate(_):
     thread.start()
 
 
+def start_stop(_):
+    global program_is_running
+
+    program_is_running = not program_is_running
+
+    _not = "not " if not program_is_running else ""
+
+    print("The program is " + _not + "running")
+
+    print_values()
+
+
 def print_values():
-	# using thread as a global variable
-	global thread
+    # using thread as a global variable
+    global thread
 
-	thread = threading.Timer(time_interval, print_values)
-	thread.daemon = True
-	thread.start()
+    if program_is_running:
+        thread = threading.Timer(time_interval, print_values)
+        thread.daemon = True
+        thread.start()
 
-	Vout = chan.voltage
-	T_ambient = (Vout - V0)/Tc
+        Vout = chan.voltage
+        T_ambient = (Vout - V0)/Tc
 
-	value = chan.value
-	
-	end = datetime.datetime.now()
-	runtime_s = (end - start).seconds
-	runtime = str(runtime_s) + "s"
-	print("{:7s}\t\t{:<12d}\t{:.3f}  C".format(runtime, value, T_ambient))
+        value = chan.value
+        
+        end = datetime.datetime.now()
+        runtime_s = (end - start).seconds
+        runtime = str(runtime_s) + "s"
+        print("{:7s}\t\t{:<12d}\t{:.3f}  C".format(runtime, value, T_ambient))
 
 
 if __name__ == "__main__":
-	try:
-		setup()
+    try:
+        setup()
 
-		print("Runtime\t\tTemp Reading\tTemp")
-		print_values()
+        print("Runtime\t\tTemp Reading\tTemp")
+        print_values()
 
-		while True:
-			pass
-	
-	except Exception as e:
-		print(e)
-	finally:
-		GPIO.cleanup()
+        while True:
+            pass
+    
+    except Exception as e:
+        print(e)
+    finally:
+        GPIO.cleanup()
