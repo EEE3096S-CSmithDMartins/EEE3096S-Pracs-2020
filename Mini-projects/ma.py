@@ -17,6 +17,7 @@ buzzer_pin = 13  # the buzzer pin in BCM mode
 
 sample_count = 0  # the number of samples up to now
 
+eeprom_index = 0
 eeprom = ES2EEPROMUtils.ES2EEPROM()
 time_interval = 5
 thread = None
@@ -63,7 +64,30 @@ def setup():
     GPIO.add_event_detect(rate_pin, GPIO.FALLING, callback=toggle_rate, bouncetime=300)
     GPIO.add_event_detect(start_stop_pin, GPIO.FALLING, callback=start_stop, bouncetime=300)
 
+#def fetch_scores():
+#	eeprom_data = []
+#	for x in range(0, eeprom_index):
+#		data = eeprom.read_block(x, 4)
+#		print(x)
 
+def save_scores(data):
+	global eeprom_index
+	#if index smaller than 20 we read data and increment index
+	if eeprom_index < 20:
+		for i in range(0, len(data)):
+			#eeprom.write_block(eeprom_index, data[i])
+			pass
+		eeprom_index += 1
+	#if index greater than 20 we reset it to 0 and start writing new data...
+	#...from index 0
+	else:
+		eeprom_index = 0
+
+		#add data
+		for i in range(0, len(data)):
+			#eeprom.write_block(eeprom_index, data[i])
+			pass
+		eeprom_index += 1
 def toggle_rate(_):
     """
         This function toggles the sampling time
@@ -152,7 +176,15 @@ def print_values():
     
     # the current time as a string
     current_time = end.strftime("%H:%M:%S")
-    
+
+    #isolate current time
+    hours = end.hour
+    minutes = end.minute
+    seconds = end.strftime("%S")
+    temperature = round(T_ambient, 2)
+    eeprom_data = [hours, minutes, seconds, temperature]
+    save_scores(eeprom_data)
+
     sample_count += 1
     print("{:8s}\t{:9s}\t{:.3f}  C\t {:d}".format(current_time, sys_time, T_ambient, sample_count))
 
