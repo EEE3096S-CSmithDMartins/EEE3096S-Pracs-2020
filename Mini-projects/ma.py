@@ -103,6 +103,15 @@ def start_stop(_):
     print_values()
 
 
+def beep():
+    # turn the buzzer on
+    GPIO.output(buzzer_pin, 1)
+    # leave it on for a while
+    time.sleep(0.5)
+    # turn the buzzer off
+    GPIO.output(buzzer_pin, 0)
+
+
 def print_values():
     # using thread as a global variable
     global thread
