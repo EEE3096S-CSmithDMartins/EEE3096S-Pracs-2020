@@ -1,4 +1,3 @@
-
 import threading
 import busio
 import digitalio
@@ -11,10 +10,12 @@ import ES2EEPROMUtils
 import os
 import time
 
-#test commit
+
 buzzer_pin = 13  # the buzzer pin in BCM mode
 
-buzzer = None  # this will represent the buzzer component
+# buzzer = None  # this will represent the buzzer component
+
+sample_count = 0  # the number of samples up to now
 
 eeprom = ES2EEPROMUtils.ES2EEPROM()
 time_interval = 5
@@ -58,10 +59,6 @@ def setup():
     #region Setup buzzer
     GPIO.setup(buzzer_pin, GPIO.OUT, initial=GPIO.LOW)
 
-    buzzer = GPIO.PWM(buzzer_pin, 1)
-
-    buzzer.start(50)
-
     # adding a callback for when the button is clicked
     GPIO.add_event_detect(rate_pin, GPIO.FALLING, callback=toggle_rate, bouncetime=300)
     GPIO.add_event_detect(start_stop_pin, GPIO.FALLING, callback=start_stop, bouncetime=300)
@@ -92,51 +89,82 @@ def toggle_rate(_):
 
 
 def start_stop(_):
-    global program_is_running
+    global program_is_running, thread
+
+    # if the program is running
+    if program_is_running:
+        # stop it
+        thread.cancel()
+
+        # clear the screen
+        os.system('clear')
+
+        print("Logging has stopped")
+    
+    # if the program is not running
+    else:
+        # clear the screen
+        os.system('clear')
+
+        # resume running
+        print("Logging resumed")
+        print_header()
+        thread = threading.Timer(time_interval, print_values)
+        thread.start()
 
     program_is_running = not program_is_running
-
-    _not = "not " if not program_is_running else ""
-
-    print("The program is " + _not + "running")
-
-    print_values()
 
 
 def beep():
     # turn the buzzer on
     GPIO.output(buzzer_pin, 1)
     # leave it on for a while
-    time.sleep(0.5)
+    time.sleep(0.3)
     # turn the buzzer off
     GPIO.output(buzzer_pin, 0)
+
+
+def print_header():
+    # don't worry about the last column; it will be removed.
+    print("{:8s}\t{:9s}\t{:4s}\t\t{:s}".format("Time", "Sys Timer", "Temp", "Buzzer"))
 
 
 def print_values():
     # using thread as a global variable
     global thread
+    global sample_count
 
-    if program_is_running:
-        thread = threading.Timer(time_interval, print_values)
-        thread.daemon = True
-        thread.start()
+    thread = threading.Timer(time_interval, print_values)
+    thread.daemon = True
+    thread.start()
 
-        Vout = chan.voltage
-        T_ambient = (Vout - V0)/Tc
+    Vout = chan.voltage
+    T_ambient = (Vout - V0)/Tc
 
-        value = chan.value
-        
-        end = datetime.datetime.now()
-        runtime_s = (end - start).seconds
-        runtime = str(runtime_s) + "s"
-        print("{:7s}\t\t{:<12d}\t{:.3f}  C".format(runtime, value, T_ambient))
+    value = chan.value
+    
+    # calculating the time since the system started
+    end = datetime.datetime.now()
+    sys_time = (end - start).total_seconds()
+    sys_hours, remainder = divmod(sys_time, 3600)
+    sys_minunes, sys_seconds = divmod(remainder, 60)
+    sys_time = "{:02d}:{:02d}:{:02d}".format(int(sys_hours), int(sys_minunes), int(sys_seconds))
+    
+    # the current time as a string
+    current_time = end.strftime("%H:%M:%S")
+    
+    sample_count += 1
+    print("{:8s}\t{:9s}\t{:.3f}  C\t {:d}".format(current_time, sys_time, T_ambient, sample_count))
+
+    # beep in the first sample and every 5th sample
+    if sample_count == 1 or sample_count % 5 == 0:
+        beep()
 
 
 if __name__ == "__main__":
     try:
         setup()
-
-        print("Runtime\t\tTemp Reading\tTemp")
+        print_header()
         print_values()
 
         while True:
