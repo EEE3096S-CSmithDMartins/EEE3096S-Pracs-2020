@@ -64,30 +64,29 @@ def setup():
     GPIO.add_event_detect(rate_pin, GPIO.FALLING, callback=toggle_rate, bouncetime=300)
     GPIO.add_event_detect(start_stop_pin, GPIO.FALLING, callback=start_stop, bouncetime=300)
 
-#def fetch_scores():
-#	eeprom_data = []
-#	for x in range(0, eeprom_index):
-#		data = eeprom.read_block(x, 4)
-#		print(x)
+
+def fetch_scores():
+	data = eeprom.read_block(eeprom_index, 4)
+	print(data)
 
 def save_scores(data):
 	global eeprom_index
 	#if index smaller than 20 we read data and increment index
 	if eeprom_index < 20:
-		for i in range(0, len(data)):
-			#eeprom.write_block(eeprom_index, data[i])
-			pass
+		eeprom.write_block(eeprom_index, data)
+		#fetch_scores()
 		eeprom_index += 1
+
 	#if index greater than 20 we reset it to 0 and start writing new data...
 	#...from index 0
 	else:
 		eeprom_index = 0
 
 		#add data
-		for i in range(0, len(data)):
-			#eeprom.write_block(eeprom_index, data[i])
-			pass
+		eeprom.write_block(eeprom_index,data)
+		#fetch_scores()
 		eeprom_index += 1
+
 def toggle_rate(_):
     """
         This function toggles the sampling time
@@ -180,8 +179,8 @@ def print_values():
     #isolate current time
     hours = end.hour
     minutes = end.minute
-    seconds = end.strftime("%S")
-    temperature = round(T_ambient, 2)
+    seconds = int(end.strftime("%S"))
+    temperature = int(T_ambient)
     eeprom_data = [hours, minutes, seconds, temperature]
     save_scores(eeprom_data)
 
