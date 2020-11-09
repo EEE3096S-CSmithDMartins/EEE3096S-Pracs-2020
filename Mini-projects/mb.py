@@ -12,7 +12,6 @@ import time
 import blynklib
 from blynktimer import Timer
 
-blynk_timer = Timer()
 
 BLYNK_AUTH = "dbRneQ7iQIH-TkBb6ZoM0qqrNkUcf6Ew"
 
@@ -36,6 +35,7 @@ T_ambient = 0
 
 # to calculate runtime
 start = datetime.datetime.now()
+
 
 def setup():
     # the following variables must be global
@@ -89,11 +89,30 @@ def setup():
     def write_virtual_pin_handler(pin, value):
         start_stop(None)
 
-    
-    # @blynk_timer.register(interval=0.01)
-    # def fun():
-    #     print("ONe second later")
     #endregion Setup Virtual pins
+
+
+def print_everywhere(message, terminal_Vpin=0):
+    """
+    Prints to the Pi's terminal and the Blynk's terminal
+    """
+    # printing the the Pi's terminal
+    print(message)
+
+    # printing to the Blynk terminal
+    blynk.virtual_write(terminal_Vpin, message)
+
+
+def clear_everywhere(terminal_Vpin=0):
+    """
+    clears the Pi's terminal and the Blynk's terminal
+    """
+    # clearing the the Pi's terminal
+    os.system("clear")
+
+    # clearing the Blynk terminal, by printing 50 blank lines
+    blynk.virtual_write(terminal_Vpin, '\n'*50)
+
 
 def fetch_scores():
 	data = eeprom.read_block(eeprom_index, 4)
@@ -117,6 +136,7 @@ def save_scores(data):
 		eeprom.write_block(eeprom_index,data)
 		#fetch_scores()
 		eeprom_index += 1
+
 
 def toggle_rate():
     """
@@ -151,17 +171,17 @@ def start_stop(_):
         thread.cancel()
 
         # clear the screen
-        os.system('clear')
+        clear_everywhere()
 
-        print("Logging has stopped")
+        print_everywhere("Logging has stopped")
     
     # if the program is not running
     else:
         # clear the screen
-        os.system('clear')
+        clear_everywhere()
 
         # resume running
-        print("Logging resumed")
+        print_everywhere("Logging resumed")
         print_header()
         thread = threading.Timer(time_interval, print_values)
         thread.start()
@@ -179,12 +199,10 @@ def beep():
 
 
 def print_header():
-    header = "{:8s}\t{:9s}\t{:4s}".format("Time", "Sys Timer", "Temp")
-    # don't worry about the last column; it will be removed.
-    print(header)
+    header = "{:15s}{:16s}{:s}".format("Time", "Sys Timer", "Temp")
 
-    # printing to the Blynk console  
-    blynk.virtual_write(0, header)
+    # printing to the real and the Blynk terminal
+    print_everywhere(header)
 
 
 def print_values():
@@ -222,13 +240,10 @@ def print_values():
 
     sample_count += 1
 
-    times_and_temperature = "{:8s}\t{:9s}\t{:.3f}  C".format(current_time, sys_time, T_ambient)
+    times_and_temperature = "{:15s}{:16s}{:.3f}  C".format(current_time, sys_time, T_ambient)
 
-    # printing to the Pi's console
-    print(times_and_temperature)
-    
-    # printing to the Blynk console whenever blynk requests the temperature. really bad solution   
-    blynk.virtual_write(0, times_and_temperature)
+    # printing to the real and the Blynk terminal
+    print_everywhere(times_and_temperature)
 
     # beep in the first sample and every 5th sample
     if sample_count == 1 or sample_count % 5 == 0:
@@ -237,24 +252,21 @@ def print_values():
 
 if __name__ == "__main__":
     try:
-        setup()
-
-        # clearing the blynk logo
-        os.system("clear")
+        setup()        
 
         # running blynk for the first time so that the print_header can write to the virtual terminal too
         blynk.run()
+
+        # clearing the blynk logo
+        clear_everywhere()
 
         print_header()
         print_values()
         
         while True:
-            blynk.run()
-            # blynk_timer.run()
-            
+            blynk.run()            
     
     except Exception as e:
-        blynk.disconnect()
         print(e)
     finally:
         GPIO.cleanup()
