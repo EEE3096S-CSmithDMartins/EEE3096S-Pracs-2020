@@ -72,12 +72,13 @@ def setup():
     # handling the virtual button clicks
     @blynk.handle_event('write V1')
     def write_virtual_pin_handler(pin, value):
-        toggle_rate()
+        # pause/resume logging
+        start_stop(None)
 
-    # handle rate change button click
-    @blynk.handle_event('read V2')
-    def read_virtual_pin_handler(pin):
-        blynk.virtual_write(pin, round(T_ambient, 3))
+    # display the temperature
+    # @blynk.handle_event('read V2')
+    # def read_virtual_pin_handler(pin):
+    #     blynk.virtual_write(pin, round(T_ambient, 3))
 
     # an extra button to quit
     @blynk.handle_event('write V3')
@@ -87,7 +88,9 @@ def setup():
     # button to start/stop logging
     @blynk.handle_event('write V4')
     def write_virtual_pin_handler(pin, value):
-        start_stop(None)
+        # value is the id of the segmented switch option clicked by the user
+        rates = [2, 5, 10]
+        toggle_rate(rates[int(value[0])-1])
 
     #endregion Setup Virtual pins
 
@@ -138,7 +141,7 @@ def save_scores(data):
 		eeprom_index += 1
 
 
-def toggle_rate():
+def toggle_rate(new_rate):
     """
         This function toggles the sampling time
     """
@@ -147,14 +150,7 @@ def toggle_rate():
     # stopping the thread
     thread.cancel()
 
-    if time_interval == 10:
-        time_interval = 5
-
-    elif time_interval == 5:
-        time_interval = 2
-        
-    elif time_interval == 2:
-        time_interval = 10
+    time_interval = new_rate
     
     thread = threading.Timer(time_interval, print_values)
 
@@ -242,6 +238,7 @@ def print_values():
 
     times_and_temperature = "{:15s}{:16s}{:.3f}  C".format(current_time, sys_time, T_ambient)
 
+    blynk.virtual_write(2, round(T_ambient, 3))
     # printing to the real and the Blynk terminal
     print_everywhere(times_and_temperature)
 
