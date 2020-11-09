@@ -10,7 +10,9 @@ import ES2EEPROMUtils
 import os
 import time
 import blynklib
+from blynktimer import Timer
 
+blynk_timer = Timer()
 
 BLYNK_AUTH = "dbRneQ7iQIH-TkBb6ZoM0qqrNkUcf6Ew"
 
@@ -53,33 +55,45 @@ def setup():
     chan = AnalogIn(mcp, MCP.P1)
     #endregion Setup ADC
 
+    #region Setup GPIO
     # the pin to start/stop printing to the console
     start_stop_pin = 24  # this is pin 18 in BOARD MODE 
 
     # setting GPIO 24 (BCM) as an input
     GPIO.setup(start_stop_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-    #region Setup buzzer
     GPIO.setup(buzzer_pin, GPIO.OUT, initial=GPIO.LOW)
 
     # adding a callback for when the start/stop button is clicked
     GPIO.add_event_detect(start_stop_pin, GPIO.FALLING, callback=start_stop, bouncetime=300)
+    #endregion Setup GPIO
 
+    #region Setup Virtual pins
     # handling the virtual button clicks
     @blynk.handle_event('write V1')
     def write_virtual_pin_handler(pin, value):
         toggle_rate()
 
+    # handle rate change button click
     @blynk.handle_event('read V2')
     def read_virtual_pin_handler(pin):
         blynk.virtual_write(pin, round(T_ambient, 3))
-
 
     # an extra button to quit
     @blynk.handle_event('write V3')
     def write_virtual_pin_handler(pin, value):
         exit()
 
+    # button to start/stop logging
+    @blynk.handle_event('write V4')
+    def write_virtual_pin_handler(pin, value):
+        start_stop(None)
+
+    
+    # @blynk_timer.register(interval=0.01)
+    # def fun():
+    #     print("ONe second later")
+    #endregion Setup Virtual pins
 
 def fetch_scores():
 	data = eeprom.read_block(eeprom_index, 4)
@@ -165,8 +179,12 @@ def beep():
 
 
 def print_header():
+    header = "{:8s}\t{:9s}\t{:4s}".format("Time", "Sys Timer", "Temp")
     # don't worry about the last column; it will be removed.
-    print("{:8s}\t{:9s}\t{:4s}".format("Time", "Sys Timer", "Temp"))
+    print(header)
+
+    # printing to the Blynk console  
+    blynk.virtual_write(0, header)
 
 
 def print_values():
@@ -208,14 +226,9 @@ def print_values():
 
     # printing to the Pi's console
     print(times_and_temperature)
-
-    # printing to the Blynk console whenever blynk requests the temperature. really bad solution
-    # @blynk.handle_event('read V2')
-    # def my_virtual_pin_handler(pin):
-    #     blynk.virtual_write(0, times_and_temperature+'\n')   
-
-
     
+    # printing to the Blynk console whenever blynk requests the temperature. really bad solution   
+    blynk.virtual_write(0, times_and_temperature)
 
     # beep in the first sample and every 5th sample
     if sample_count == 1 or sample_count % 5 == 0:
@@ -225,16 +238,23 @@ def print_values():
 if __name__ == "__main__":
     try:
         setup()
+
         # clearing the blynk logo
         os.system("clear")
+
+        # running blynk for the first time so that the print_header can write to the virtual terminal too
+        blynk.run()
+
         print_header()
         print_values()
-
+        
         while True:
             blynk.run()
-            pass
+            # blynk_timer.run()
+            
     
     except Exception as e:
+        blynk.disconnect()
         print(e)
     finally:
         GPIO.cleanup()
