@@ -79,7 +79,7 @@ def setup():
     def write_virtual_pin_handler(pin, value):
         exit()
 
-    # button to start/stop logging
+    # button to rate change
     @blynk.handle_event('write V4')
     def write_virtual_pin_handler(pin, value):
         # value is the id of the segmented switch option clicked by the user
@@ -258,6 +258,6 @@ if __name__ == "__main__":
             blynk.run()            
     
     except Exception as e:
-        print(e)
+        print_everywhere(e)
     finally:
         GPIO.cleanup()
