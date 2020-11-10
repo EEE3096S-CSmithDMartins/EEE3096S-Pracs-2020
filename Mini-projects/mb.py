@@ -23,17 +23,16 @@ sample_count = 0  # the number of samples up to now
 
 eeprom_index = 0
 eeprom = ES2EEPROMUtils.ES2EEPROM()
-time_interval = 5
-thread = None
+time_interval = 5  # default sampling time interval
+thread = None  # a global variable that will be used later, for threading
 
 program_is_running = True  # this variable will be toggled when the start-stop button is pressed
 
 # parameters of the temperature sensor (from datasheet)
 Tc = 10e-3 # temperature coefficient, in V/℃
 V0 = 500e-3 # output voltage at 0 ℃, in V
-T_ambient = 0
 
-# to calculate runtime
+# initial time, to calculate runtime
 start = datetime.datetime.now()
 
 
@@ -69,18 +68,13 @@ def setup():
     #endregion Setup GPIO
 
     #region Setup Virtual pins
-    # handling the virtual button clicks
+    # virtual button to start/stop logging
     @blynk.handle_event('write V1')
     def write_virtual_pin_handler(pin, value):
         # pause/resume logging
         start_stop(None)
 
-    # display the temperature
-    # @blynk.handle_event('read V2')
-    # def read_virtual_pin_handler(pin):
-    #     blynk.virtual_write(pin, round(T_ambient, 3))
-
-    # an extra button to quit
+    # an extra virtual button to quit
     @blynk.handle_event('write V3')
     def write_virtual_pin_handler(pin, value):
         exit()
@@ -179,6 +173,7 @@ def start_stop(_):
         # resume running
         print_everywhere("Logging resumed")
         print_header()
+
         thread = threading.Timer(time_interval, print_values)
         thread.start()
 
@@ -205,7 +200,6 @@ def print_values():
     # using thread as a global variable
     global thread
     global sample_count
-    global T_ambient
 
     thread = threading.Timer(time_interval, print_values)
     thread.daemon = True
